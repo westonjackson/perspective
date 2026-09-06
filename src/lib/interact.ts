@@ -8,15 +8,14 @@ import {
   type Camera,
   type Mat3,
   type Vec2,
-  type RecoverFailure,
   DEG,
-  clampVanishingPointDrag,
   dist2,
   infiniteAxes,
   lerp2,
   matMul,
   norm2,
   orthonormalize,
+  recoverCameraLenient,
   recoverWithOneAxisAtInfinity,
   rotationAxisAngle,
   segmentParameter,
@@ -28,12 +27,22 @@ export const MIN_FOCAL = 24
 
 export interface DragOutcome {
   camera: Camera
-  /** The request was refused and we settled short of it. */
-  clamped: boolean
-  reason: RecoverFailure | null
+  /**
+   * The three vanishing points no longer describe a real, mutually-orthogonal
+   * camera. `camera` still updates — it renders as the actual (sheared)
+   * parallelepiped that triangle implies, not a cube — this only flags it.
+   */
+  invalid: boolean
+  /**
+   * The exact target was refused and we settled for the nearest point we
+   * could: the only way to reach this is a true singularity (three vanishing
+   * points exactly collinear, or two of them coinciding), which has no
+   * orthocenter — and so no shape at all — to fall back to.
+   */
+  refused: boolean
 }
 
-const unchanged = (camera: Camera): DragOutcome => ({ camera, clamped: false, reason: null })
+const unchanged = (camera: Camera): DragOutcome => ({ camera, invalid: false, refused: false })
 
 /**
  * Move vanishing point `axis` toward `target` (frame pixels), respecting the
@@ -94,35 +103,32 @@ export function dragVanishingPoint(
       )
 
     const direct = attempt(target)
-    if (direct.ok) return { camera: direct.camera, clamped: false, reason: null }
+    if (direct.ok) return { camera: direct.camera, invalid: false, refused: false }
     const settled = bisect(selfVp.at, target, (pt) => attempt(pt).ok)
     const res = attempt(settled)
     return {
       camera: res.ok ? res.camera : camera,
-      clamped: true,
-      reason: direct.reason,
+      invalid: false,
+      refused: true,
     }
   }
 
   // --- the general case: three finite vanishing points --------------------
+  // No acute-triangle requirement here: land exactly on the target regardless
+  // of what triangle results, and only flag it as `invalid` when it isn't a
+  // real camera. The one thing with no fallback at all is an exactly
+  // collinear triple, which has no orthocenter — that alone is refused.
   const vps = [0, 1, 2].map((i) => {
     const v = vanishingPointForAxis(camera, i)
     return v.kind === 'finite' ? v.at : null
   })
   if (vps.some((v) => v === null)) return unchanged(camera)
 
-  const out = clampVanishingPointDrag(
-    vps as [Vec2, Vec2, Vec2],
-    axis,
-    target,
-    camera.R,
-    minFocal,
-  )
-  return {
-    camera: out.camera ?? camera,
-    clamped: out.clamped,
-    reason: out.reason,
-  }
+  const next = vps.slice() as [Vec2, Vec2, Vec2]
+  next[axis] = target
+  const result = recoverCameraLenient(next[0], next[1], next[2], camera.R)
+  if (!result) return { camera, invalid: true, refused: true }
+  return { camera: result.camera, invalid: !result.valid, refused: false }
 }
 
 /** Largest fraction along a->b that still satisfies `ok`. */

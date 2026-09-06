@@ -7,6 +7,7 @@ import {
   infiniteAxes,
   matFromEuler,
   matToEuler,
+  orthogonalityErrorDegrees,
   pointInConvexPolygon,
   sendAxisToInfinity,
   sub2,
@@ -46,10 +47,11 @@ type Drag =
   | { kind: 'frame'; grab: Vec2 }
   | { kind: 'pan'; last: Vec2 }
 
-const NONACUTE_HINT =
-  'Three vanishing points only describe a real camera when their triangle is acute. Stopped at the boundary.'
 const DEGENERATE_HINT =
-  'Three vanishing points cannot be collinear — that would put the camera nowhere.'
+  'Three vanishing points cannot be collinear (or two coincident) — that would put the camera nowhere.'
+
+/** Below this, treat the three axes as orthogonal — pure floating-point noise. */
+const ORTHOGONALITY_EPS_DEGREES = 0.05
 
 const FRAME_BORDER_TOL = 9
 
@@ -89,6 +91,8 @@ export default function App() {
   )
   const vps = useMemo(() => vanishingPoints(camera), [camera])
   const euler = useMemo(() => matToEuler(camera.R), [camera.R])
+  const orthoDeviation = useMemo(() => orthogonalityErrorDegrees(camera.R), [camera.R])
+  const orthogonalityInvalid = orthoDeviation > ORTHOGONALITY_EPS_DEGREES
 
   const showHint = useCallback((message: string | null) => {
     setHint(message)
@@ -157,10 +161,11 @@ export default function App() {
         toggles,
         hoverHandle: hover,
         activeHandle,
+        orthogonalityInvalid,
       })
     })
     return () => cancelAnimationFrame(frameId)
-  }, [size, view, camera, scene, ground, toggles, hover, activeHandle])
+  }, [size, view, camera, scene, ground, toggles, hover, activeHandle, orthogonalityInvalid])
 
   // -- hit testing ---------------------------------------------------------
   const localPoint = (e: { clientX: number; clientY: number }): Vec2 => {
@@ -285,9 +290,7 @@ export default function App() {
         const target = add2(toFrame(view, pt), drag.grab)
         const out = dragVanishingPoint(camera, drag.axis, target)
         applyCamera(out.camera)
-        if (out.clamped) {
-          showHint(out.reason === 'degenerate' ? DEGENERATE_HINT : NONACUTE_HINT)
-        }
+        if (out.refused) showHint(DEGENERATE_HINT)
         break
       }
       case 'rotate': {
@@ -417,6 +420,13 @@ export default function App() {
           onPointerCancel={endDrag}
           onLostPointerCapture={endDrag}
         />
+        {orthogonalityInvalid && (
+          <div className="warning">
+            Not a real camera — these axes are off from perpendicular by {orthoDeviation.toFixed(1)}°.
+            The object is the actual (sheared) shape that triangle implies, not a true{' '}
+            {shape.name.toLowerCase()}.
+          </div>
+        )}
         {hint && <div className="hint">{hint}</div>}
       </div>
     </div>

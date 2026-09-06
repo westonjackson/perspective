@@ -9,6 +9,7 @@
   --ink-soft: #5d6169;
   --muted: #8b8578;
   --accent: #33559c;
+  --warn: #a8621c;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
 }
 
@@ -362,6 +363,22 @@ button.on {
   border-left: 2px solid var(--accent);
   border-radius: 2px;
   color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* Persistent, not timed: stays up for as long as the camera is invalid. */
+.warning {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  max-width: 440px;
+  padding: 9px 12px;
+  background: rgba(250, 249, 245, 0.94);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--warn);
+  border-radius: 2px;
+  color: var(--warn);
   font-size: 11px;
   line-height: 1.55;
 }

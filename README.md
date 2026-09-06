@@ -71,11 +71,26 @@ row of that table.
 
 ## The acute constraint
 
-While dragging, a requested position that makes the triangle non-acute is
-refused. We bisect along the segment from the last valid position to the request
-and settle on the last point that still resolves to a real camera, with a minimum
-focal length supplying the margin. The altitudes and the orthocenter are drawn
-faintly so the rule is visible rather than merely enforced.
+The three finite vanishing points can be dragged anywhere — including into an
+obtuse triangle. `recoverCameraLenient` never refuses one: it uses
+`f = sqrt(|f²|)`, which agrees with the strict formula on the acute side and
+stays continuous straight through `f² = 0` into the obtuse side. The resulting
+axis directions are still unit vectors, just no longer mutually orthogonal, so
+`camera.R`'s columns describe the actual (sheared) parallelepiped that triangle
+implies rather than a cube — the object renders as exactly that shape, in a
+warning color, with a banner reporting how many degrees off from perpendicular
+the worst pair of axes is (`orthogonalityErrorDegrees`). Rotating the object,
+picking a preset, or hitting Reset all rebuild `R` from Euler angles or
+`sendAxisToInfinity`, which forces it back to a true rotation — shear is a side
+effect specific to dragging a vanishing point, and only lasts until you touch
+anything else.
+
+The only thing with no fallback at all is a truly degenerate configuration —
+three vanishing points exactly collinear, or two coincident — which has no
+orthocenter, and so no shape whatsoever, to fall back to. That one case alone
+is refused outright, snapping back to the last position before the drag.
+The altitudes and the orthocenter are drawn faintly regardless, so the
+underlying rule is always visible.
 
 ## Limiting cases
 
@@ -123,7 +138,7 @@ vanishing point and colour.
 
 ## Tests
 
-54 tests over the pure modules, including the ones that matter most:
+64 tests over the pure modules, including the ones that matter most:
 
 - **Round trip** — random `{R, f, p}` → three vanishing points → recovery
   reproduces `p`, `f` and `R` to 1e-9.

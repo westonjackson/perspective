@@ -66,6 +66,8 @@ export interface DrawInput {
   toggles: Toggles
   hoverHandle: number | null
   activeHandle: number | null
+  /** The current vanishing points aren't for orthogonal axes — the object is a real shape, just not a cube. */
+  orthogonalityInvalid: boolean
 }
 
 export const AXIS_LABELS = ['X', 'Y', 'Z'] as const
@@ -125,7 +127,7 @@ export function draw(input: DrawInput): void {
   if (toggles.altitudes) drawConstraint(ctx, scene.vps, camera, S, infiniteLine)
   if (toggles.convergence) drawConvergence(ctx, scene, line, clipRect)
   if (toggles.tangents) drawTangents(ctx, scene, infiniteLine)
-  drawObject(ctx, scene, S, line, toggles)
+  drawObject(ctx, scene, S, line, toggles, input.orthogonalityInvalid)
   drawHandles(ctx, scene.vps, camera, S, input)
 
   ctx.restore()
@@ -384,7 +386,10 @@ function drawObject(
   S: (p: Vec2) => Vec2,
   line: (a: Vec2, b: Vec2) => void,
   toggles: Toggles,
+  invalid: boolean,
 ): void {
+  const ink = invalid ? THEME.warn : THEME.ink
+
   if (toggles.shaded) {
     for (const face of scene.faces) {
       if (!face.front || face.poly.length < 3) continue
@@ -409,7 +414,7 @@ function drawObject(
   if (toggles.hiddenLines && !toggles.shaded) {
     ctx.setLineDash([4, 4])
     ctx.lineWidth = WEIGHT.hidden
-    ctx.strokeStyle = withAlpha(THEME.ink, ALPHA.hidden)
+    ctx.strokeStyle = withAlpha(ink, ALPHA.hidden)
     for (const edge of scene.edges) {
       if (edge.hidden && edge.seg) line(edge.seg[0], edge.seg[1])
     }
@@ -417,7 +422,7 @@ function drawObject(
   }
 
   ctx.lineWidth = WEIGHT.object
-  ctx.strokeStyle = THEME.ink
+  ctx.strokeStyle = ink
   for (const edge of scene.edges) {
     if (!edge.seg) continue
     if (edge.hidden && (toggles.hiddenLines || toggles.shaded)) continue

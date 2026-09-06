@@ -18,7 +18,10 @@ import {
   matFromEuler,
   matToEuler,
   orthocenter,
+  orthogonalityError,
+  orthogonalityErrorDegrees,
   recoverCameraFromVPs,
+  recoverCameraLenient,
   recoverWithOneAxisAtInfinity,
   sendAxisToInfinity,
   sub2,
@@ -467,5 +470,115 @@ describe('screen geometry helpers', () => {
     expect(diag[0].x).toBeCloseTo(0, 12)
     expect(diag[1].x).toBeCloseTo(10, 12)
     expect(clipLineToRect({ x: -5, y: 50 }, { x: 15, y: 50 }, rect)).toBeNull()
+  })
+})
+
+describe('recoverCameraLenient', () => {
+  it('agrees exactly with the strict recovery on an acute triangle', () => {
+    const cam: Camera = { R: matFromEuler(35 * DEG, -32 * DEG, 0), f: 560, p: { x: 0, y: 0 } }
+    const [v1, v2, v3] = vanishingPoints(cam).map((v) => {
+      if (v.kind !== 'finite') throw new Error('expected finite')
+      return v.at
+    })
+    const strict = recoverCameraFromVPs(v1, v2, v3, IDENTITY)
+    const lenient = recoverCameraLenient(v1, v2, v3, IDENTITY)
+    if (!strict.ok || !lenient) throw new Error('expected both to succeed')
+    expect(lenient.valid).toBe(true)
+    expect(lenient.camera.f).toBeCloseTo(strict.camera.f, 9)
+    expect(matDistance(lenient.camera.R, strict.camera.R)).toBeLessThan(1e-9)
+    expect(orthogonalityError(lenient.camera.R)).toBeLessThan(1e-12)
+  })
+
+  it('still returns a real, finite camera for an obtuse triangle, but marks it invalid', () => {
+    const v1 = { x: -400, y: 0 }
+    const v2 = { x: 400, y: 0 }
+    const v3 = { x: 0, y: 20 } // apex almost on the base — very obtuse
+    const strict = recoverCameraFromVPs(v1, v2, v3, IDENTITY)
+    expect(strict.ok).toBe(false)
+
+    const lenient = recoverCameraLenient(v1, v2, v3, IDENTITY)
+    expect(lenient).not.toBeNull()
+    if (!lenient) return
+    expect(lenient.valid).toBe(false)
+    expect(Number.isFinite(lenient.camera.f) && lenient.camera.f > 0).toBe(true)
+    for (const m of lenient.camera.R) expect(Number.isFinite(m)).toBe(true)
+    // The axes it built really are non-orthogonal — this is the whole point.
+    expect(orthogonalityError(lenient.camera.R)).toBeGreaterThan(0.1)
+  })
+
+  it('reproduces exactly the three vanishing points it was given, valid or not', () => {
+    const v1 = { x: -400, y: 0 }
+    const v2 = { x: 400, y: 0 }
+    const v3 = { x: 0, y: 20 }
+    const lenient = recoverCameraLenient(v1, v2, v3, IDENTITY)
+    if (!lenient) throw new Error('expected a camera')
+    const again = vanishingPoints(lenient.camera).map((v) => {
+      if (v.kind !== 'finite') throw new Error('expected finite')
+      return v.at
+    })
+    for (const [got, want] of [
+      [again[0], v1],
+      [again[1], v2],
+      [again[2], v3],
+    ] as const) {
+      expect(got.x).toBeCloseTo(want.x, 6)
+      expect(got.y).toBeCloseTo(want.y, 6)
+    }
+  })
+
+  it('is continuous through the acute/obtuse boundary, unlike the strict version', () => {
+    // v1, v2 fixed; v3 slides straight down. By Thales, the angle at v3 is
+    // exactly 90° at y = 300 — obtuse below it, acute above. f from the
+    // lenient recovery must not jump crossing that line, even though the
+    // strict recovery refuses everything on one side of it.
+    const v1 = { x: -300, y: 0 }
+    const v2 = { x: 300, y: 0 }
+    const below = recoverCameraLenient(v1, v2, { x: 0, y: 299.999 }, IDENTITY)!
+    const above = recoverCameraLenient(v1, v2, { x: 0, y: 300.001 }, IDENTITY)!
+    expect(below.valid).toBe(false)
+    expect(above.valid).toBe(true)
+    expect(Math.abs(below.camera.f - above.camera.f)).toBeLessThan(0.01)
+
+    expect(recoverCameraFromVPs(v1, v2, { x: 0, y: 299.999 }, IDENTITY).ok).toBe(false)
+    expect(recoverCameraFromVPs(v1, v2, { x: 0, y: 300.001 }, IDENTITY).ok).toBe(true)
+  })
+
+  it('returns null only for a genuinely degenerate (collinear) triple', () => {
+    expect(recoverCameraLenient({ x: 0, y: 0 }, { x: 100, y: 100 }, { x: 300, y: 300 }, IDENTITY)).toBeNull()
+  })
+
+  it('stays sign-continuous with the previous frame across the boundary, same as the strict version', () => {
+    const cam: Camera = { R: matFromEuler(38 * DEG, -30 * DEG, 8 * DEG), f: 620, p: { x: 0, y: 0 } }
+    const vps = vanishingPoints(cam).map((v) => {
+      if (v.kind !== 'finite') throw new Error('expected finite')
+      return v.at
+    })
+    let prevR = cam.R
+    let flips = 0
+    for (let i = 1; i <= 400; i++) {
+      const t = (i / 400) * Math.PI * 2
+      const moved = { x: vps[0].x + 60 * Math.cos(t), y: vps[0].y + 60 * Math.sin(t) }
+      const res = recoverCameraLenient(moved, vps[1], vps[2], prevR)
+      if (!res) continue
+      for (let axis = 0; axis < 3; axis++) {
+        if (dot3(matCol(res.camera.R, axis), matCol(prevR, axis)) < 0) flips++
+      }
+      prevR = res.camera.R
+    }
+    expect(flips).toBe(0)
+  })
+})
+
+describe('orthogonalityError / orthogonalityErrorDegrees', () => {
+  it('is zero for any proper rotation', () => {
+    const R = matFromEuler(41 * DEG, -17 * DEG, 63 * DEG)
+    expect(orthogonalityError(R)).toBeLessThan(1e-12)
+    expect(orthogonalityErrorDegrees(R)).toBeCloseTo(0, 6)
+  })
+
+  it('grows toward 90° as two axes collapse toward parallel', () => {
+    const lenient = recoverCameraLenient({ x: -400, y: 0 }, { x: 400, y: 0 }, { x: 0, y: 5 }, IDENTITY)!
+    expect(orthogonalityErrorDegrees(lenient.camera.R)).toBeGreaterThan(orthogonalityErrorDegrees(matFromEuler(0, 0, 0)))
+    expect(orthogonalityErrorDegrees(lenient.camera.R)).toBeLessThanOrEqual(90 + 1e-9)
   })
 })

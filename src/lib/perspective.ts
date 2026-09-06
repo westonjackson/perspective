@@ -336,6 +336,72 @@ export function recoverCameraFromVPs(
   return { ok: true, camera: { R, f, p }, f2 }
 }
 
+export interface LenientRecoverResult {
+  camera: Camera
+  /** False means the three directions built into `camera.R` are not mutually orthogonal. */
+  valid: boolean
+  f2: number
+}
+
+/**
+ * Like `recoverCameraFromVPs`, but never refuses a triangle just for being
+ * obtuse: it uses `f = sqrt(|f2|)`, which agrees with the strict formula on the
+ * acute side and stays continuous straight through f2 = 0 into the obtuse side.
+ * The three axis directions built from that are still unit vectors, but they
+ * are no longer mutually perpendicular — `camera.R`'s columns describe the
+ * actual (sheared) parallelepiped that triangle implies, not a cube, and
+ * `valid` says which case we're in.
+ *
+ * Only a truly degenerate (collinear) triple has no orthocenter at all and
+ * returns null — there is no triangle, let alone a shape, to fall back to.
+ */
+export function recoverCameraLenient(
+  v1: Vec2,
+  v2: Vec2,
+  v3: Vec2,
+  prevR: Mat3 = IDENTITY,
+): LenientRecoverResult | null {
+  const p = orthocenter(v1, v2, v3)
+  if (!p) return null
+
+  const a = sub2(v1, p)
+  const b = sub2(v2, p)
+  const c = sub2(v3, p)
+  const f2 = -(dot2(a, b) + dot2(b, c) + dot2(c, a)) / 3
+  if (!Number.isFinite(f2)) return null
+
+  // The 1px floor only guards the literal division by zero right at f2 = 0;
+  // it has no visible effect anywhere else.
+  const f = Math.sqrt(Math.max(Math.abs(f2), 1))
+  const d: [Vec3, Vec3, Vec3] = [
+    norm3({ x: a.x / f, y: -a.y / f, z: 1 }),
+    norm3({ x: b.x / f, y: -b.y / f, z: 1 }),
+    norm3({ x: c.x / f, y: -c.y / f, z: 1 }),
+  ]
+  const s = chooseAxisSigns(d, prevR)
+  const R = matFromCols(mul3(d[0], s[0]), mul3(d[1], s[1]), mul3(d[2], s[2]))
+  return { camera: { R, f, p }, valid: f2 > 0, f2 }
+}
+
+/**
+ * Worst-case |di·dj| among the three axis pairs of R's columns — 0 for a true
+ * rotation, and equal to cos(angle between them) when it isn't one. Works on
+ * any R, so it's a fine way to ask "is this actually an orthogonal camera?"
+ * without knowing how R was built.
+ */
+export function orthogonalityError(R: Mat3): number {
+  const d0 = matCol(R, 0)
+  const d1 = matCol(R, 1)
+  const d2 = matCol(R, 2)
+  return Math.max(Math.abs(dot3(d0, d1)), Math.abs(dot3(d1, d2)), Math.abs(dot3(d2, d0)))
+}
+
+/** The worst-offending pair's deviation from 90°, in degrees — for a human-readable warning. */
+export function orthogonalityErrorDegrees(R: Mat3): number {
+  const k = Math.min(1, orthogonalityError(R))
+  return 90 - (Math.acos(k) * 180) / Math.PI
+}
+
 // ---------------------------------------------------------------------------
 // Dragging a vanishing point, with the acute-triangle constraint
 // ---------------------------------------------------------------------------

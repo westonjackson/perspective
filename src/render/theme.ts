@@ -12,6 +12,8 @@ export const THEME = {
   axis: ['#b03f2c', '#2f7a58', '#33559c'] as const,
   shadeDark: { r: 0x3c, g: 0x43, b: 0x4a },
   shadeLight: { r: 0xe6, g: 0xe3, b: 0xd9 },
+  /** The object's ink when the current vanishing points aren't orthogonal. */
+  warn: '#a8621c',
 } as const
 
 export const MONO =

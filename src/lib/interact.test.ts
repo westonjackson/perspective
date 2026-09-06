@@ -35,7 +35,8 @@ describe('dragging with three finite vanishing points', () => {
   it('lands the dragged vanishing point on the target', () => {
     const target = { x: 500, y: -600 }
     const out = dragVanishingPoint(threePoint, 2, target)
-    expect(out.clamped).toBe(false)
+    expect(out.refused).toBe(false)
+    expect(out.invalid).toBe(false)
     const moved = finiteVp(out.camera, 2)
     expect(moved.x).toBeCloseTo(target.x, 6)
     expect(moved.y).toBeCloseTo(target.y, 6)
@@ -58,25 +59,61 @@ describe('dragging with three finite vanishing points', () => {
     expect(out.camera.f).not.toBeCloseTo(threePoint.f, 3)
   })
 
-  it('stops at the acute boundary and still returns a usable camera', () => {
-    // Aim vanishing point 2 straight at vanishing point 0.
-    const out = dragVanishingPoint(threePoint, 2, finiteVp(threePoint, 0))
-    expect(out.clamped).toBe(true)
-    expect(out.reason).not.toBeNull()
-    expect(Number.isFinite(out.camera.f)).toBe(true)
-    expect(out.camera.f).toBeGreaterThan(0)
+  it('lands exactly on an obtuse target instead of stopping short, and flags it invalid', () => {
+    const v0 = finiteVp(threePoint, 0)
+    const v1 = finiteVp(threePoint, 1)
+    // Push vanishing point 2 far along the extension of the v0-v1 segment,
+    // offset just enough to stay non-collinear: a real, very obtuse triangle.
+    const dx = v1.x - v0.x
+    const dy = v1.y - v0.y
+    const len = Math.hypot(dx, dy)
+    const ux = dx / len
+    const uy = dy / len
+    const target = { x: v1.x + ux * 500 - uy * 40, y: v1.y + uy * 500 + ux * 40 }
+
+    const out = dragVanishingPoint(threePoint, 2, target)
+    expect(out.refused).toBe(false)
+    expect(out.invalid).toBe(true)
+    const moved = finiteVp(out.camera, 2)
+    expect(moved.x).toBeCloseTo(target.x, 6)
+    expect(moved.y).toBeCloseTo(target.y, 6)
+    // Still a real, finite, drawable camera — just not an orthogonal one.
+    expect(Number.isFinite(out.camera.f) && out.camera.f > 0).toBe(true)
     for (const m of out.camera.R) expect(Number.isFinite(m)).toBe(true)
-    expect(matDet(out.camera.R)).toBeCloseTo(1, 10)
   })
 
-  it('survives a long sweep across the boundary without ever going invalid', () => {
+  it('refuses a target that would make two vanishing points coincide', () => {
+    // Drag vanishing point 2 exactly onto vanishing point 0: zero-area triangle.
+    const out = dragVanishingPoint(threePoint, 2, finiteVp(threePoint, 0))
+    expect(out.refused).toBe(true)
+    expect(out.camera).toEqual(threePoint)
+  })
+
+  it('recovers cleanly once dragged back into an acute configuration', () => {
+    const v0 = finiteVp(threePoint, 0)
+    const v1 = finiteVp(threePoint, 1)
+    const dx = v1.x - v0.x
+    const dy = v1.y - v0.y
+    const len = Math.hypot(dx, dy)
+    const ux = dx / len
+    const uy = dy / len
+    const obtuseTarget = { x: v1.x + ux * 500 - uy * 40, y: v1.y + uy * 500 + ux * 40 }
+    const bent = dragVanishingPoint(threePoint, 2, obtuseTarget)
+    expect(bent.invalid).toBe(true)
+
+    const restored = dragVanishingPoint(bent.camera, 2, finiteVp(threePoint, 2))
+    expect(restored.invalid).toBe(false)
+    expect(matDet(restored.camera.R)).toBeCloseTo(1, 8)
+  })
+
+  it('survives a long sweep across the boundary, staying real and never NaN', () => {
     let cam = threePoint
     for (let i = 0; i < 300; i++) {
       const vp = finiteVp(cam, 2)
       const out = dragVanishingPoint(cam, 2, { x: vp.x - 35, y: vp.y + 25 })
       cam = out.camera
       expect(Number.isFinite(cam.f) && cam.f > 0).toBe(true)
-      expect(matDet(cam.R)).toBeCloseTo(1, 8)
+      for (const m of cam.R) expect(Number.isFinite(m)).toBe(true)
     }
   })
 })
@@ -118,7 +155,7 @@ describe('dragging with one vanishing point at infinity', () => {
   it('refuses to collapse the two finite points onto each other', () => {
     const other = finiteVp(twoPoint, 2)
     const out = dragVanishingPoint(twoPoint, 0, other)
-    expect(out.clamped).toBe(true)
+    expect(out.refused).toBe(true)
     expect(out.camera.f).toBeGreaterThan(0)
     expect(Number.isFinite(out.camera.f)).toBe(true)
   })
