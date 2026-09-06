@@ -26,6 +26,7 @@ export interface ControlsProps {
 }
 
 const TOGGLE_LABELS: [keyof Toggles, string][] = [
+  ['frame', 'Image frame'],
   ['convergence', 'Convergence lines'],
   ['tangents', 'Tangent lines'],
   ['grid', 'Background grid'],

@@ -51,6 +51,7 @@ export interface Toggles {
   shaded: boolean
   altitudes: boolean
   labels: boolean
+  frame: boolean
 }
 
 export interface DrawInput {
@@ -116,9 +117,10 @@ export function draw(input: DrawInput): void {
   }
 
   if (toggles.grid) drawScreenGrid(ctx, width, height, view)
-  drawImageFrame(ctx, frameRect)
+  if (toggles.frame) drawImageFrame(ctx, frameRect)
   // The ground plane is scene content, not construction, so it belongs inside
-  // the picture: clipping it there also keeps near-horizon lines from sprawling.
+  // the picture: clipping it there also keeps near-horizon lines from sprawling,
+  // independent of whether the frame rectangle itself is drawn.
   if (toggles.groundGrid) drawGroundGrid(ctx, input.ground, S, frameRect)
   if (toggles.altitudes) drawConstraint(ctx, scene.vps, camera, S, infiniteLine)
   if (toggles.convergence) drawConvergence(ctx, scene, line, clipRect)

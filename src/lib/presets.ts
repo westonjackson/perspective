@@ -64,6 +64,7 @@ export const DEFAULT_TOGGLES: Toggles = {
   shaded: false,
   altitudes: true,
   labels: true,
+  frame: true,
 }
 
 export const DEFAULTS = {

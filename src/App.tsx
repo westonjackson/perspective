@@ -181,6 +181,8 @@ export default function App() {
 
   const onFrameBorder = useCallback(
     (pt: Vec2): boolean => {
+      // Nothing to grab if the frame itself isn't drawn.
+      if (!toggles.frame) return false
       const tl = toScreen(view, { x: camera.p.x - FRAME.w / 2, y: camera.p.y - FRAME.h / 2 })
       const w = FRAME.w * view.zoom
       const h = FRAME.h * view.zoom
@@ -191,7 +193,7 @@ export default function App() {
         pt.x > tl.x + t && pt.x < tl.x + w - t && pt.y > tl.y + t && pt.y < tl.y + h - t
       return inOuter && !inInner
     },
-    [view, camera.p],
+    [view, camera.p, toggles.frame],
   )
 
   const onObject = useCallback(
