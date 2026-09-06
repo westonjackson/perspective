@@ -1,0 +1,367 @@
+/* A drafting instrument, not a dashboard: pale ground, hairlines, one ink. */
+
+:root {
+  --paper: #faf9f5;
+  --panel: #f4f2ec;
+  --rule: #ddd9cf;
+  --rule-soft: #e8e5dc;
+  --ink: #15191c;
+  --ink-soft: #5d6169;
+  --muted: #8b8578;
+  --accent: #33559c;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 12px/1.5 var(--mono);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 274px minmax(0, 1fr);
+  height: 100%;
+}
+
+/* --------------------------------------------------------------- panel -- */
+
+.panel {
+  border-right: 1px solid var(--rule);
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 0 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.panel-head {
+  padding-top: 20px;
+}
+
+.panel-head h1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.panel-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.panel section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.panel h2 {
+  margin: 0 0 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ readouts -- */
+
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.readout > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.readout > b {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.readout .inf {
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.readout .inf.on {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ------------------------------------------------------------- sliders -- */
+
+.slider {
+  display: block;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.slider-label b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.slider-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--rule);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.slider-ends i {
+  font-style: normal;
+  color: var(--muted);
+  opacity: 0.65;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  background: transparent;
+  margin: 0;
+  cursor: ew-resize;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--rule);
+}
+
+input[type='range']::-moz-range-track {
+  height: 1px;
+  background: var(--rule);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 9px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--paper);
+  border: 1.25px solid var(--ink);
+  border-radius: 1px;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 8px;
+  height: 11px;
+  background: var(--paper);
+  border: 1.25px solid var(--ink);
+  border-radius: 1px;
+}
+
+/* ------------------------------------------------------------- inputs --- */
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+select,
+input[type='number'] {
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 3px 5px;
+}
+
+select {
+  margin-left: auto;
+  min-width: 120px;
+}
+
+.angles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.angles label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.angles input {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------- buttons -- */
+
+button {
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 5px 7px;
+  cursor: pointer;
+  transition: none;
+}
+
+button:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+
+button.on {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.row-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.row-buttons button {
+  flex: 1;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------- toggles -- */
+
+.toggles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.toggles label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.toggles input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  border: 1px solid var(--muted);
+  border-radius: 2px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.toggles input:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--panel);
+}
+
+.panel-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.panel-foot p {
+  margin: 0 0 6px;
+}
+
+/* --------------------------------------------------------------- stage -- */
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.stage canvas {
+  display: block;
+  touch-action: none;
+}
+
+.hint {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  max-width: 440px;
+  padding: 9px 12px;
+  background: rgba(250, 249, 245, 0.94);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  border-radius: 2px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
