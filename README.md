@@ -79,11 +79,15 @@ axis directions are still unit vectors, just no longer mutually orthogonal, so
 `camera.R`'s columns describe the actual (sheared) parallelepiped that triangle
 implies rather than a cube — the object renders as exactly that shape, in a
 warning color, with a banner reporting how many degrees off from perpendicular
-the worst pair of axes is (`orthogonalityErrorDegrees`). Rotating the object,
-picking a preset, or hitting Reset all rebuild `R` from Euler angles or
-`sendAxisToInfinity`, which forces it back to a true rotation — shear is a side
-effect specific to dragging a vanishing point, and only lasts until you touch
-anything else.
+the worst pair of axes is (`orthogonalityErrorDegrees`). Trackball-rotating the
+object carries the shear along rather than erasing it: composing a proper
+rotation onto R — however skewed R already is — preserves every pairwise dot
+product between its columns exactly, `(Qdᵢ)·(Qdⱼ) = dᵢ·dⱼ`, so the sheared
+object just turns in place. Picking a preset, hitting Reset, editing the
+numeric angle fields, or using the ∞ buttons all rebuild `R` outright (from
+Euler angles, or via `sendAxisToInfinity`'s own re-orthonormalization) — those
+are explicit "set this exact orientation" actions, so they land on a true
+rotation regardless of what R was before.
 
 The only thing with no fallback at all is a truly degenerate configuration —
 three vanishing points exactly collinear, or two coincident — which has no
@@ -138,7 +142,7 @@ vanishing point and colour.
 
 ## Tests
 
-64 tests over the pure modules, including the ones that matter most:
+65 tests over the pure modules, including the ones that matter most:
 
 - **Round trip** — random `{R, f, p}` → three vanishing points → recovery
   reproduces `p`, `f` and `R` to 1e-9.

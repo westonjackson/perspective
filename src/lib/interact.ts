@@ -146,11 +146,22 @@ function bisect(a: Vec2, b: Vec2, ok: (p: Vec2) => boolean, iterations = 28): Ve
 
 // ---------------------------------------------------------------------------
 
-/** Trackball rotation from a screen-space drag, applied in the camera frame. */
+/**
+ * Trackball rotation from a screen-space drag, applied in the camera frame.
+ *
+ * Deliberately does not `orthonormalize`: pitch and yaw are themselves proper
+ * rotations, and left-multiplying by an orthonormal matrix preserves every
+ * pairwise dot product among R's columns exactly — (Qd_i)·(Qd_j) = d_i·d_j.
+ * So if R already came from a vanishing-point drag that violated orthogonality
+ * (a deliberately sheared object), rotating it carries the shear along rather
+ * than silently snapping it back to a cube; if R was a true rotation, this
+ * still keeps it one, since composing two orthonormal matrices is exact up to
+ * floating-point noise far smaller than anything visible.
+ */
 export function trackballRotate(R: Mat3, dx: number, dy: number, sensitivity = 0.42): Mat3 {
   const yaw = rotationAxisAngle({ x: 0, y: 1, z: 0 }, dx * sensitivity * DEG)
   const pitch = rotationAxisAngle({ x: 1, y: 0, z: 0 }, dy * sensitivity * DEG)
-  return orthonormalize(matMul(matMul(pitch, yaw), R))
+  return matMul(matMul(pitch, yaw), R)
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import {
   matDet,
   matDistance,
   matFromEuler,
+  orthogonalityError,
   vanishingPointForAxis,
 } from './perspective'
 import {
@@ -220,6 +221,26 @@ describe('object rotation moves the vanishing points', () => {
       const c = matCol(R, i)
       expect(Math.hypot(c.x, c.y, c.z)).toBeCloseTo(1, 10)
     }
+  })
+
+  it('carries an existing shear through instead of silently fixing it', () => {
+    // Force an obtuse (invalid) camera the same way a vanishing-point drag would.
+    const v0 = finiteVp(threePoint, 0)
+    const v1 = finiteVp(threePoint, 1)
+    const dx = v1.x - v0.x
+    const dy = v1.y - v0.y
+    const len = Math.hypot(dx, dy)
+    const ux = dx / len
+    const uy = dy / len
+    const target = { x: v1.x + ux * 500 - uy * 40, y: v1.y + uy * 500 + ux * 40 }
+    const sheared = dragVanishingPoint(threePoint, 2, target)
+    expect(sheared.invalid).toBe(true)
+    const before = orthogonalityError(sheared.camera.R)
+    expect(before).toBeGreaterThan(0.05)
+
+    // Grabbing the object and rotating it must not reset that shear away.
+    const rotated = trackballRotate(sheared.camera.R, 25, -15)
+    expect(orthogonalityError(rotated)).toBeCloseTo(before, 9)
   })
 })
 
